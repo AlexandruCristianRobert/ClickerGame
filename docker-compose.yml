@@ -15,7 +15,7 @@ services:
     networks:
       - clickergame-network
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Filelist2015! -Q 'SELECT 1'"]
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Filelist2015! -C -Q 'SELECT 1'"]
       interval: 15s
       timeout: 5s
       retries: 1

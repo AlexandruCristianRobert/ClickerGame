@@ -56,7 +56,7 @@ namespace ClickerGame.GameCore.Domain.Entities
             var maxOfflineHours = 24;
             var cappedSeconds = Math.Min(secondsOffline, maxOfflineHours * 3600);
 
-            var offlineEarnings = new BigNumber((decimal)(PassiveIncomePerSecond * cappedSeconds));
+            var offlineEarnings = new BigNumber(PassiveIncomePerSecond * (decimal)cappedSeconds);
             Score += offlineEarnings;
             LastUpdateTime = DateTime.UtcNow;
 
