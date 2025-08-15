@@ -106,6 +106,146 @@ namespace ClickerGame.GameCore.Controllers
             }
         }
 
+        /// <summary>
+        /// Get game session by player ID (for service-to-service calls)
+        /// </summary>
+        [HttpGet("session/{playerId:guid}")]
+        public async Task<ActionResult<GameSessionDto>> GetGameSessionByPlayerId(Guid playerId)
+        {
+            _logger.LogRequestStart(_correlationService, "GetGameSessionByPlayerId");
+
+            try
+            {
+                var session = await _gameEngine.GetGameSessionAsync(playerId);
+
+                _logger.LogBusinessEvent(_correlationService, "GameSessionRetrievedByPlayerId", new
+                {
+                    PlayerId = playerId,
+                    SessionId = session.SessionId,
+                    Score = session.Score.ToString(),
+                    ClickCount = session.ClickCount
+                });
+
+                return Ok(new GameSessionDto
+                {
+                    SessionId = session.SessionId,
+                    PlayerId = session.PlayerId,
+                    PlayerUsername = session.PlayerUsername,
+                    Score = session.Score.ToString(),
+                    ClickCount = session.ClickCount,
+                    ClickPower = session.ClickPower.ToString(),
+                    PassiveIncomePerSecond = session.PassiveIncomePerSecond,
+                    IsActive = session.IsActive
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(_correlationService, ex, "Error getting game session for player {PlayerId}", playerId);
+                return StatusCode(500, new { error = "Internal server error" });
+            }
+        }
+
+        /// <summary>
+        /// Deduct score from player (for upgrade purchases)
+        /// </summary>
+        [HttpPost("deduct-score")]
+        public async Task<ActionResult> DeductScore([FromBody] DeductScoreRequest request)
+        {
+            _logger.LogRequestStart(_correlationService, "DeductScore");
+
+            try
+            {
+                var session = await _gameEngine.GetGameSessionAsync(request.PlayerId);
+                var amount = new BigNumber(decimal.Parse(request.Amount));
+
+                if (session.Score < amount)
+                {
+                    _logger.LogBusinessEvent(_correlationService, "ScoreDeductionFailed", new
+                    {
+                        PlayerId = request.PlayerId,
+                        RequestedAmount = request.Amount,
+                        CurrentScore = session.Score.ToString(),
+                        Reason = "Insufficient funds"
+                    });
+
+                    return BadRequest(new { error = "Insufficient score" });
+                }
+
+                // Deduct the score
+                session.Score = session.Score - amount;
+                await _gameEngine.SaveGameSessionAsync(session);
+
+                _logger.LogBusinessEvent(_correlationService, "ScoreDeducted", new
+                {
+                    PlayerId = request.PlayerId,
+                    DeductedAmount = request.Amount,
+                    RemainingScore = session.Score.ToString(),
+                    Reason = request.Reason
+                });
+
+                return Ok(new
+                {
+                    success = true,
+                    remainingScore = session.Score.ToString(),
+                    deductedAmount = request.Amount
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(_correlationService, ex, "Error deducting score for player {PlayerId}", request.PlayerId);
+                return StatusCode(500, new { error = "Internal server error" });
+            }
+        }
+
+        /// <summary>
+        /// Apply upgrade effects to player
+        /// </summary>
+        [HttpPost("apply-upgrade-effects")]
+        public async Task<ActionResult> ApplyUpgradeEffects([FromBody] ApplyUpgradeEffectsRequest request)
+        {
+            _logger.LogRequestStart(_correlationService, "ApplyUpgradeEffects");
+
+            try
+            {
+                var session = await _gameEngine.GetGameSessionAsync(request.PlayerId);
+
+                // Apply click power bonuses
+                if (request.ClickPowerBonus > 0)
+                {
+                    session.ClickPower = session.ClickPower + new BigNumber(request.ClickPowerBonus);
+                }
+
+                // Apply passive income bonuses
+                if (request.PassiveIncomeBonus > 0)
+                {
+                    session.PassiveIncomePerSecond += request.PassiveIncomeBonus;
+                }
+
+                await _gameEngine.SaveGameSessionAsync(session);
+
+                _logger.LogBusinessEvent(_correlationService, "UpgradeEffectsApplied", new
+                {
+                    PlayerId = request.PlayerId,
+                    ClickPowerBonus = request.ClickPowerBonus,
+                    PassiveIncomeBonus = request.PassiveIncomeBonus,
+                    NewClickPower = session.ClickPower.ToString(),
+                    NewPassiveIncome = session.PassiveIncomePerSecond
+                });
+
+                return Ok(new
+                {
+                    success = true,
+                    newClickPower = session.ClickPower.ToString(),
+                    newPassiveIncome = session.PassiveIncomePerSecond
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(_correlationService, ex, "Error applying upgrade effects for player {PlayerId}", request.PlayerId);
+                return StatusCode(500, new { error = "Internal server error" });
+            }
+        }
+
         [HttpPost("session/create")]
         public async Task<ActionResult<GameSessionDto>> CreateGameSession()
         {
@@ -203,6 +343,23 @@ namespace ClickerGame.GameCore.Controllers
         {
             return User.FindFirst(ClaimTypes.Name)?.Value ?? "Unknown";
         }
+    }
+
+    // Request/Response DTOs for new endpoints
+    public class DeductScoreRequest
+    {
+        public Guid PlayerId { get; set; }
+        public string Amount { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    public class ApplyUpgradeEffectsRequest
+    {
+        public Guid PlayerId { get; set; }
+        public decimal ClickPowerBonus { get; set; }
+        public decimal PassiveIncomeBonus { get; set; }
+        public decimal MultiplierBonus { get; set; } = 1.0m;
+        public string SourceUpgradeId { get; set; } = string.Empty;
     }
 
     public class ClickRequestDto

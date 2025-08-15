@@ -8,6 +8,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{C063E3BA-1B5A-4CBA-8192-F83EE7591DE5}"
 	ProjectSection(SolutionItems) = preProject
 		doc.txt = doc.txt
+		..\Documents\Updated Architecture Strategy.txt = ..\Documents\Updated Architecture Strategy.txt
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Frontend", "Frontend", "{AF62FA4C-133B-408F-8A47-F62D9F6BEBB2}"
@@ -33,6 +34,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClickerGame.GameCore", "src
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClickerGame.ApiGateway", "src\ApiGateway\ClickerGame.ApiGateway\ClickerGame.ApiGateway.csproj", "{B23E975B-EE98-4DBE-A352-49B8289A07F6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClickerGame.Upgrades", "src\Services\ClickerGame.Upgrades\ClickerGame.Upgrades.csproj", "{5C7E18AE-215C-4897-A076-E13370B8E43A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +58,10 @@ Global
 		{B23E975B-EE98-4DBE-A352-49B8289A07F6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B23E975B-EE98-4DBE-A352-49B8289A07F6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B23E975B-EE98-4DBE-A352-49B8289A07F6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C7E18AE-215C-4897-A076-E13370B8E43A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C7E18AE-215C-4897-A076-E13370B8E43A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C7E18AE-215C-4897-A076-E13370B8E43A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C7E18AE-215C-4897-A076-E13370B8E43A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -69,6 +76,7 @@ Global
 		{FBAD7B1C-E19A-4EE8-9BBE-C73ACCC5B91E} = {928A9E85-DB9D-460D-8D1E-B5DE4665E128}
 		{AA1983C3-C320-4879-BE6B-3E3F37D8A229} = {928A9E85-DB9D-460D-8D1E-B5DE4665E128}
 		{B23E975B-EE98-4DBE-A352-49B8289A07F6} = {12377D4E-FB66-4C14-A2D1-8DA0ED4BB968}
+		{5C7E18AE-215C-4897-A076-E13370B8E43A} = {928A9E85-DB9D-460D-8D1E-B5DE4665E128}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {119A6F64-14DB-4996-9C64-5B455AAC9489}

@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace ClickerGame.Shared.Events
 {
-    public abstract class Integrationevent
+    public abstract class IntegrationEvent
     {
-        public Integrationevent()
+        public IntegrationEvent()
         {
             Id = Guid.NewGuid();
             CreationDate = DateTime.UtcNow;

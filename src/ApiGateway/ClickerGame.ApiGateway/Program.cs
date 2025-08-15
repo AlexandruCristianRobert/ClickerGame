@@ -99,6 +99,7 @@ builder.Services.AddReverseProxy()
 builder.Services.AddHealthChecks()
     .AddUrlGroup(new Uri("http://players-service/health"), "players-service")
     .AddUrlGroup(new Uri("http://gamecore-service/health"), "gamecore-service")
+    .AddUrlGroup(new Uri("http://upgrades-service/health"), "upgrades-service")
     .AddRedis(builder.Configuration.GetConnectionString("Redis") ?? "redis:6379");
 
 // CORS
