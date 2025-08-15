@@ -1,15 +1,21 @@
 using ClickerGame.GameCore.Application.Services;
 using ClickerGame.GameCore.Infrastructure.Data;
+using ClickerGame.GameCore.Middleware;
+using ClickerGame.Shared.Logging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using StackExchange.Redis;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Add correlation logging
+builder.Services.AddCorrelationLogging("GameCore-Service");
+builder.Host.UseSerilog();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -18,7 +24,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "GameCore Service API",
         Version = "v1",
-        Description = "Clicker Game Core Microservice"
+        Description = "Clicker Game Core Microservice with Centralized Logging"
     });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -101,7 +107,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Configure pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -114,6 +120,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
+
+// Add correlation middleware
+app.UseMiddleware<CorrelationMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -128,13 +138,13 @@ if (app.Environment.IsDevelopment())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<GameCoreDbContext>();
         dbContext.Database.Migrate();
-        Console.WriteLine("GameCore database migration completed successfully.");
+        Log.Information("GameCore Service database migration completed successfully");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"GameCore database migration failed: {ex.Message}");
+        Log.Error(ex, "GameCore Service database migration failed");
     }
 }
 
-Console.WriteLine("GameCore Service starting on port 5002");
+Log.Information("GameCore Service starting on port 5002");
 app.Run();

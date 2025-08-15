@@ -1,17 +1,17 @@
+using ClickerGame.ApiGateway.Middleware;
+using ClickerGame.ApiGateway.Services;
+using ClickerGame.Shared.Logging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using StackExchange.Redis;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Serilog
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .WriteTo.Console()
-    .CreateLogger();
-
+// Add correlation logging first
+builder.Services.AddCorrelationLogging("API-Gateway");
 builder.Host.UseSerilog();
 
 // Add services
@@ -23,8 +23,39 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "ClickerGame API Gateway",
         Version = "v1",
-        Description = "API Gateway for ClickerGame Microservices"
+        Description = "API Gateway for ClickerGame Microservices with Rate Limiting and Centralized Logging"
     });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+// Configure Redis for rate limiting
+builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+    return ConnectionMultiplexer.Connect(connectionString);
 });
 
 // Configure JWT Authentication
@@ -56,6 +87,10 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAuthenticatedUser());
 });
 
+// Add Rate Limiting Services
+builder.Services.AddScoped<IRateLimitService, RateLimitService>();
+builder.Services.AddScoped<IRateLimitMonitoringService, RateLimitMonitoringService>();
+
 // Add YARP
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
@@ -63,7 +98,8 @@ builder.Services.AddReverseProxy()
 // Add Health Checks
 builder.Services.AddHealthChecks()
     .AddUrlGroup(new Uri("http://players-service/health"), "players-service")
-    .AddUrlGroup(new Uri("http://gamecore-service/health"), "gamecore-service");
+    .AddUrlGroup(new Uri("http://gamecore-service/health"), "gamecore-service")
+    .AddRedis(builder.Configuration.GetConnectionString("Redis") ?? "redis:6379");
 
 // CORS
 builder.Services.AddCors(options =>
@@ -92,6 +128,12 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 
+// Add correlation middleware FIRST (before rate limiting)
+app.UseMiddleware<CorrelationMiddleware>();
+
+// Add rate limiting middleware
+app.UseMiddleware<RateLimitingMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -101,5 +143,5 @@ app.MapHealthChecks("/health");
 // Map YARP routes
 app.MapReverseProxy();
 
-Log.Information("API Gateway starting on port 5000");
+Log.Information("API Gateway with Centralized Logging starting on port 5000");
 app.Run();

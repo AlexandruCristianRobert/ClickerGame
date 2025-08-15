@@ -1,6 +1,7 @@
-
 using ClickerGame.Players.Application.Services;
 using ClickerGame.Players.Infrastructure.Data;
+using ClickerGame.Players.Middleware;
+using ClickerGame.Shared.Logging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -16,22 +17,14 @@ namespace ClickerGame.Players
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
-
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Information()
-                .WriteTo.Console()
-                .WriteTo.File("logs/players-service-.txt",rollingInterval: RollingInterval.Day)
-                .CreateLogger();
-
+            // Add correlation logging
+            builder.Services.AddCorrelationLogging("Players-Service");
             builder.Host.UseSerilog();
 
-
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-            Console.WriteLine($"=== DEBUG: Connection String: {connectionString}");
+            Log.Information("Players Service starting with connection: {ConnectionString}", connectionString);
 
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
             {
@@ -39,7 +32,7 @@ namespace ClickerGame.Players
                 {
                     Title = "Players Service API",
                     Version = "v1",
-                    Description = "Clicker Game Players Microservice"
+                    Description = "Clicker Game Players Microservice with Centralized Logging"
                 });
 
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -65,7 +58,6 @@ namespace ClickerGame.Players
                         Array.Empty<string>()
                     }
                 });
-
             });
 
             builder.Services.AddDbContext<PlayersDbContext>(options =>
@@ -96,7 +88,6 @@ namespace ClickerGame.Players
                 };
             });
 
-
             builder.Services.AddScoped<IJwtService, JwtService>();
             builder.Services.AddScoped<IPlayerService, PlayerService>();
 
@@ -121,57 +112,47 @@ namespace ClickerGame.Players
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
+            // Configure pipeline
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(c =>
                 {
                     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Players Service API V1");
-                    c.RoutePrefix = string.Empty; 
+                    c.RoutePrefix = string.Empty;
                 });
             }
 
             app.UseHttpsRedirection();
-
             app.UseCors("AllowAngularApp");
 
+            // Add correlation middleware
+            app.UseMiddleware<CorrelationMiddleware>();
 
             app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();
-
             app.MapHealthChecks("/health");
-            app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-            {
-                Predicate = check => check.Tags.Contains("ready")
-            });
 
-            app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+            if (app.Environment.IsDevelopment())
             {
-                Predicate = _ => false
-            });
-
-            if (app.Environment.IsDevelopment()){
                 using (var scope = app.Services.CreateScope())
                 {
                     try
                     {
                         var dbContext = scope.ServiceProvider.GetRequiredService<PlayersDbContext>();
                         dbContext.Database.Migrate();
-                        Log.Information("Database migration completed successfully.");
+                        Log.Information("Players Service database migration completed successfully");
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
-                        Log.Error(ex, "An error occurred during database migration.");
+                        Log.Error(ex, "Players Service database migration failed");
                     }
                 }
             }
 
-            Log.Information("Players Service is starting on port {Port}", 5001);
-
-
+            Log.Information("Players Service starting on port 5001");
             app.Run();
         }
     }
