@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: clickergame-sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Filelist2015!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - clickergame-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Filelist2015! -Q 'SELECT 1'"]
+      interval: 15s
+      timeout: 5s
+      retries: 1
+
+  players-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clickergame-players
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=ClickerGame_Players;User Id=sa;Password=Filelist2015!;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True
+    ports:
+      - "5001:80"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - clickergame-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: clickergame-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - clickergame-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: clickergame-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - clickergame-network
+
+volumes:
+  sqlserver_data:
+  rabbitmq_data:
+  redis_data:
+
+networks:
+  clickergame-network:
+    driver: bridge

@@ -1,0 +1,66 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36408.4
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{C063E3BA-1B5A-4CBA-8192-F83EE7591DE5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Frontend", "Frontend", "{AF62FA4C-133B-408F-8A47-F62D9F6BEBB2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ApiGateway", "ApiGateway", "{12377D4E-FB66-4C14-A2D1-8DA0ED4BB968}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{928A9E85-DB9D-460D-8D1E-B5DE4665E128}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BuildingBlocks", "BuildingBlocks", "{331C7161-8C43-4927-8267-45667F5D54DB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{6EF67DA5-6AE4-4FD6-8A71-5BF0CA0B8D83}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClickerGame.Shared", "src\BuildingBlocks\ClickerGame.Shared\ClickerGame.Shared.csproj", "{1EC4C7B9-E4B1-474C-95E0-9614263F4A2B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClickerGame.Players", "src\Services\ClickerGame.Players\ClickerGame.Players.csproj", "{FBAD7B1C-E19A-4EE8-9BBE-C73ACCC5B91E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
+	ProjectSection(SolutionItems) = preProject
+		docker-compose.yml = docker-compose.yml
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClickerGame.GameCore", "src\Services\ClickerGame.GameCore\ClickerGame.GameCore.csproj", "{AA1983C3-C320-4879-BE6B-3E3F37D8A229}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1EC4C7B9-E4B1-474C-95E0-9614263F4A2B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1EC4C7B9-E4B1-474C-95E0-9614263F4A2B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1EC4C7B9-E4B1-474C-95E0-9614263F4A2B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1EC4C7B9-E4B1-474C-95E0-9614263F4A2B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FBAD7B1C-E19A-4EE8-9BBE-C73ACCC5B91E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FBAD7B1C-E19A-4EE8-9BBE-C73ACCC5B91E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FBAD7B1C-E19A-4EE8-9BBE-C73ACCC5B91E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FBAD7B1C-E19A-4EE8-9BBE-C73ACCC5B91E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA1983C3-C320-4879-BE6B-3E3F37D8A229}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA1983C3-C320-4879-BE6B-3E3F37D8A229}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA1983C3-C320-4879-BE6B-3E3F37D8A229}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA1983C3-C320-4879-BE6B-3E3F37D8A229}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{AF62FA4C-133B-408F-8A47-F62D9F6BEBB2} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{12377D4E-FB66-4C14-A2D1-8DA0ED4BB968} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{928A9E85-DB9D-460D-8D1E-B5DE4665E128} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{331C7161-8C43-4927-8267-45667F5D54DB} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{6EF67DA5-6AE4-4FD6-8A71-5BF0CA0B8D83} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{1EC4C7B9-E4B1-474C-95E0-9614263F4A2B} = {331C7161-8C43-4927-8267-45667F5D54DB}
+		{FBAD7B1C-E19A-4EE8-9BBE-C73ACCC5B91E} = {928A9E85-DB9D-460D-8D1E-B5DE4665E128}
+		{AA1983C3-C320-4879-BE6B-3E3F37D8A229} = {928A9E85-DB9D-460D-8D1E-B5DE4665E128}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {119A6F64-14DB-4996-9C64-5B455AAC9489}
+	EndGlobalSection
+EndGlobal
