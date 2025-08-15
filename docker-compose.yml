@@ -20,6 +20,27 @@ services:
       timeout: 5s
       retries: 1
 
+  api-gateway:
+    build:
+      context: .
+      dockerfile: src/ApiGateway/ClickerGame.ApiGateway/Dockerfile
+    container_name: clickergame-gateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - Jwt__Secret=74413016b8227efda87f73c6bf4217ce0c5ff5fd96d6b05e9ec36dc97cec3693ed8b41b4
+      - Jwt__Issuer=ClickerGame.Players
+      - Jwt__Audience=ClickerGame
+    ports:
+      - "5000:80"
+    depends_on:
+      players-service:
+        condition: service_started
+      gamecore-service:
+        condition: service_started
+    networks:
+      - clickergame-network
+
   players-service:
     build:
       context: .

@@ -28,6 +28,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClickerGame.GameCore", "src\Services\ClickerGame.GameCore\ClickerGame.GameCore.csproj", "{AA1983C3-C320-4879-BE6B-3E3F37D8A229}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClickerGame.ApiGateway", "src\ApiGateway\ClickerGame.ApiGateway\ClickerGame.ApiGateway.csproj", "{B23E975B-EE98-4DBE-A352-49B8289A07F6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -46,6 +48,10 @@ Global
 		{AA1983C3-C320-4879-BE6B-3E3F37D8A229}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AA1983C3-C320-4879-BE6B-3E3F37D8A229}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AA1983C3-C320-4879-BE6B-3E3F37D8A229}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B23E975B-EE98-4DBE-A352-49B8289A07F6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B23E975B-EE98-4DBE-A352-49B8289A07F6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B23E975B-EE98-4DBE-A352-49B8289A07F6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B23E975B-EE98-4DBE-A352-49B8289A07F6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -59,6 +65,7 @@ Global
 		{1EC4C7B9-E4B1-474C-95E0-9614263F4A2B} = {331C7161-8C43-4927-8267-45667F5D54DB}
 		{FBAD7B1C-E19A-4EE8-9BBE-C73ACCC5B91E} = {928A9E85-DB9D-460D-8D1E-B5DE4665E128}
 		{AA1983C3-C320-4879-BE6B-3E3F37D8A229} = {928A9E85-DB9D-460D-8D1E-B5DE4665E128}
+		{B23E975B-EE98-4DBE-A352-49B8289A07F6} = {12377D4E-FB66-4C14-A2D1-8DA0ED4BB968}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {119A6F64-14DB-4996-9C64-5B455AAC9489}
