@@ -116,6 +116,10 @@ builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 // AutoMapper
 builder.Services.AddAutoMapper(Assembly.GetExecutingAssembly());
 
+// Add the validation configuration
+builder.Services.Configure<UpgradeValidationSettings>(
+    builder.Configuration.GetSection("UpgradeValidation"));
+
 // Application Services (remove duplicates)
 builder.Services.AddScoped<IUpgradeCalculationEngine, UpgradeCalculationEngine>();
 builder.Services.AddScoped<IUpgradeService, UpgradeService>();
