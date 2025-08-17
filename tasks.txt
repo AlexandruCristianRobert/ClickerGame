@@ -1,0 +1,168 @@
+﻿Phase 1: SignalR Hub Infrastructure (Priority: High)
+Task 1.1: Setup SignalR Hub Foundation
+•	Objective: Create the core SignalR hub in GameCore service
+•	Dependencies: SignalR package already referenced in GameCore.csproj
+•	Tasks:
+•	Create GameHub class with JWT authentication
+•	Add connection/disconnection event handlers
+•	Implement player grouping (individual player groups, global events)
+•	Configure SignalR in Program.cs with authentication events
+•	Update CORS policy to support SignalR connections
+Task 1.2: Authentication Integration
+•	Objective: Secure SignalR connections with JWT
+•	Dependencies: Existing JWT authentication system
+•	Tasks:
+•	Configure JWT authentication for SignalR (query string token support)
+•	Add JWT events for SignalR message handling
+•	Implement user identification from JWT claims
+•	Add connection context management (player ID, username)
+---
+Phase 2: Real-time Notification System (Priority: High)
+Task 2.1: Core Notification Infrastructure
+•	Objective: Create notification services and interfaces
+•	Dependencies: Task 1.1 completed
+•	Tasks:
+•	Create IGameNotificationService interface
+•	Implement GameNotificationService with SignalR hub context
+•	Define notification types enum (Achievement, Upgrade, Score, System)
+•	Create notification DTOs and event models
+Task 2.2: Achievement Notifications
+•	Objective: Implement achievement unlock notifications
+•	Dependencies: Task 2.1 completed, future Achievement service
+•	Tasks:
+•	Add achievement notification methods to hub
+•	Create achievement notification DTOs
+•	Implement achievement broadcast to specific players
+•	Add achievement notification history/queue for offline players
+Task 2.3: System Event Notifications
+•	Objective: Handle system-wide events and announcements
+•	Dependencies: Task 2.1 completed
+•	Tasks:
+•	Implement global announcement broadcasts
+•	Add maintenance/downtime notifications
+•	Create event countdown timers
+•	Add special event notifications (golden cookies, bonuses)
+---
+Phase 3: Live Score Updates Broadcasting (Priority: High)
+Task 3.1: Score Update Hub Methods
+•	Objective: Real-time score broadcasting
+•	Dependencies: Task 1.1 completed
+•	Tasks:
+•	Add score update hub methods
+•	Integrate with existing ProcessClick in GameController
+•	Implement score broadcast to player-specific groups
+•	Add throttling to prevent spam (max 1 update per 100ms)
+Task 3.2: GameEngine Integration
+•	Objective: Connect SignalR with game state changes
+•	Dependencies: Task 3.1, existing GameEngineService
+•	Tasks:
+•	Modify GameEngineService to inject notification service
+•	Add real-time notifications to click processing
+•	Update passive income calculations with live updates
+•	Integrate upgrade effects with live score updates
+Task 3.3: Leaderboard Live Updates
+•	Objective: Real-time leaderboard position changes
+•	Dependencies: Task 3.1, future Leaderboard service
+•	Tasks:
+•	Add leaderboard update notifications
+•	Implement rank change broadcasts
+•	Create leaderboard position tracking
+•	Add competitive event notifications
+---
+Phase 4: Presence System (Priority: Medium)
+Task 4.1: Connection Management
+•	Objective: Track online/offline player status
+•	Dependencies: Task 1.1 completed
+•	Tasks:
+•	Create IPresenceService interface
+•	Implement Redis-based presence tracking
+•	Add connection/disconnection tracking
+•	Create presence update broadcasts
+Task 4.2: Player Presence Features
+•	Objective: Show online player indicators
+•	Dependencies: Task 4.1 completed
+•	Tasks:
+•	Add online player count to hub
+•	Implement friend presence tracking (future feature)
+•	Create "player joined/left" notifications
+•	Add idle/active status tracking
+Task 4.3: Multiplayer Features
+•	Objective: Enable multiplayer presence features
+•	Dependencies: Task 4.2 completed
+•	Tasks:
+•	Add guild/team presence indicators
+•	Implement competitive session tracking
+•	Create multiplayer event coordination
+•	Add synchronized event countdowns
+---
+Phase 5: WebSocket Fallback & Browser Support (Priority: Medium)
+Task 5.1: SignalR Transport Configuration
+•	Objective: Ensure broad browser compatibility
+•	Dependencies: Task 1.1 completed
+•	Tasks:
+•	Configure SignalR transport priorities (WebSockets → Server-Sent Events → Long Polling)
+•	Add transport fallback logging
+•	Test with older browser support
+•	Configure connection retry policies
+Task 5.2: Connection Resilience
+•	Objective: Handle network interruptions gracefully
+•	Dependencies: Task 5.1 completed
+•	Tasks:
+•	Implement automatic reconnection logic
+•	Add connection state management
+•	Create offline mode detection
+•	Implement message queuing for offline periods
+---
+Phase 6: Integration with Existing Services (Priority: Medium)
+Task 6.1: Upgrades Service Integration
+•	Objective: Real-time upgrade purchase notifications
+•	Dependencies: Task 2.1, existing Upgrades service
+•	Tasks:
+•	Modify UpgradeService to send purchase notifications
+•	Add upgrade effect application broadcasts
+•	Create upgrade recommendation notifications
+•	Integrate with player effect updates
+Task 6.2: Players Service Integration
+•	Objective: Player authentication and profile updates
+•	Dependencies: Task 1.2, existing Players service
+•	Tasks:
+•	Add player login/logout notifications
+•	Integrate profile update broadcasts
+•	Add player level-up notifications
+•	Create friend activity notifications (future)
+---
+Phase 7: API Gateway WebSocket Proxying (Priority: Low)
+Task 7.1: YARP WebSocket Configuration
+•	Objective: Route WebSocket connections through API Gateway
+•	Dependencies: Phase 1 completed
+•	Tasks:
+•	Configure YARP for WebSocket proxying
+•	Update API Gateway routes for SignalR hub
+•	Add WebSocket-specific rate limiting
+•	Test end-to-end connectivity
+Task 7.2: Load Balancing Considerations
+•	Objective: Prepare for horizontal scaling
+•	Dependencies: Task 7.1 completed
+•	Tasks:
+•	Research SignalR Redis backplane
+•	Plan for sticky sessions if needed
+•	Configure connection distribution
+•	Document scaling requirements
+---
+Phase 8: Monitoring & Diagnostics (Priority: Low)
+Task 8.1: SignalR Metrics
+•	Objective: Monitor real-time communication health
+•	Dependencies: Phase 1 completed
+•	Tasks:
+•	Add SignalR connection metrics
+•	Track message throughput and latency
+•	Monitor disconnection rates
+•	Create alerting for connection issues
+Task 8.2: Performance Optimization
+•	Objective: Optimize real-time performance
+•	Dependencies: Task 8.1 completed
+•	Tasks:
+•	Implement message batching where appropriate
+•	Add connection pooling optimization
+•	Create performance benchmarks
+•	Optimize JSON serialization for frequent updates

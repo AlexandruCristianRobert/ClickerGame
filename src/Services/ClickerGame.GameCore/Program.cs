@@ -1,6 +1,7 @@
-using ClickerGame.GameCore.Application.Services;
+﻿using ClickerGame.GameCore.Application.Services;
 using ClickerGame.GameCore.Infrastructure.Data;
 using ClickerGame.GameCore.Middleware;
+using ClickerGame.GameCore.Hubs;
 using ClickerGame.Shared.Logging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +25,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "GameCore Service API",
         Version = "v1",
-        Description = "Clicker Game Core Microservice with Centralized Logging"
+        Description = "Clicker Game Core Microservice with Real-time Communication"
     });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -63,7 +64,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
     return ConnectionMultiplexer.Connect(connectionString);
 });
 
-// JWT Authentication
+// JWT Authentication - Enhanced for SignalR
 var jwtSecret = builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
 var key = Encoding.ASCII.GetBytes(jwtSecret);
 
@@ -81,12 +82,122 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidAudience = builder.Configuration["Jwt:Audience"],
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
+            ClockSkew = TimeSpan.FromSeconds(30),
+            RequireExpirationTime = true
+        };
+
+        // Enhanced JWT events for SignalR
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    (path.StartsWithSegments("/gameHub") || path.StartsWithSegments("/hubs/")))
+                {
+                    context.Token = accessToken;
+                    Log.Debug("JWT token extracted from query string for SignalR connection");
+                }
+
+                return Task.CompletedTask;
+            },
+
+            OnTokenValidated = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                var userId = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var username = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+
+                logger.LogDebug("JWT token validated for user {UserId} ({Username})", userId, username);
+                return Task.CompletedTask;
+            },
+
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                logger.LogWarning("JWT authentication failed: {Exception}", context.Exception.Message);
+
+                if (context.Request.Path.StartsWithSegments("/gameHub"))
+                {
+                    context.NoResult();
+                }
+
+                return Task.CompletedTask;
+            },
+
+            OnChallenge = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+
+                if (context.Request.Path.StartsWithSegments("/gameHub"))
+                {
+                    logger.LogWarning("JWT challenge for SignalR connection. Error: {Error}, Description: {Description}",
+                        context.Error, context.ErrorDescription);
+
+                    context.HandleResponse();
+                    context.Response.StatusCode = 401;
+                    return context.Response.WriteAsync("Unauthorized: Invalid or missing JWT token for SignalR connection");
+                }
+
+                return Task.CompletedTask;
+            }
         };
     });
 
+// Authorization policies
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("RequirePlayer", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireClaim("role", "player");
+    });
+
+    options.AddPolicy("RequireValidPlayerId", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.NameIdentifier);
+    });
+});
+
+// SignalR Configuration - ENHANCED with Transport Configuration (Task 5.1)
+builder.Services.AddSignalR(options =>
+{
+    // Basic hub configuration
+    options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+    options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+    options.MaximumReceiveMessageSize = 32 * 1024; // 32KB
+    options.StreamBufferCapacity = 10;
+    options.MaximumParallelInvocationsPerClient = 1;
+
+    // Enhanced connection timeout for poor network conditions
+    options.StatefulReconnectBufferSize = 1000;
+})
+.AddJsonProtocol(options =>
+{
+    options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    options.PayloadSerializerOptions.WriteIndented = false; // Minimize payload size
+});
+
 // Application Services
 builder.Services.AddScoped<IGameEngineService, GameEngineService>();
+builder.Services.AddScoped<IGameNotificationService, GameNotificationService>();
+builder.Services.AddScoped<ISignalRConnectionManager, SignalRConnectionManager>();
+builder.Services.AddScoped<ISystemEventService, SystemEventService>();
+builder.Services.AddScoped<IScoreUpdateThrottleService, ScoreUpdateThrottleService>();
+builder.Services.AddScoped<IScoreBroadcastService, ScoreBroadcastService>();
+builder.Services.AddScoped<IPresenceService, PresenceService>();
+builder.Services.AddScoped<ISignalRMetricsService, SignalRMetricsService>();
+
+builder.Services.AddHostedService<SignalRMetricsBackgroundService>();
+builder.Services.AddHostedService<PresenceCleanupBackgroundService>();
+builder.Services.AddHostedService<ScheduledEventBackgroundService>();
+builder.Services.AddHostedService<PassiveIncomeBackgroundService>();
+
 builder.Services.AddHttpClient();
 
 // Health Checks
@@ -94,14 +205,20 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<GameCoreDbContext>()
     .AddRedis(builder.Configuration.GetConnectionString("Redis") ?? "redis:6379");
 
-// CORS
+// CORS - Enhanced for SignalR with proper transport support
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowSignalR", policy =>
     {
-        policy.AllowAnyOrigin()
+        var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
+                           ?? new[] { "http://localhost:4200", "https://localhost:4200", "http://localhost:3000" };
+
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials() // Required for SignalR
+              .WithExposedHeaders("X-Correlation-ID")
+              .SetPreflightMaxAge(TimeSpan.FromMinutes(5)); // Cache preflight requests
     });
 });
 
@@ -119,7 +236,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+app.UseCors("AllowSignalR");
+
+app.UseStaticFiles();
 
 // Add correlation middleware
 app.UseMiddleware<CorrelationMiddleware>();
@@ -129,6 +248,30 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+// Map SignalR Hub with enhanced transport configuration
+app.MapHub<GameHub>("/gameHub", options =>
+{
+    // Configure transport priorities: WebSockets → Server-Sent Events → Long Polling
+    options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets |
+                        Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
+                        Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+
+    // Additional connection options for browser compatibility
+    options.CloseOnAuthenticationExpiration = true;
+    options.ApplicationMaxBufferSize = 32 * 1024; // 32KB buffer
+    options.TransportMaxBufferSize = 64 * 1024;   // 64KB transport buffer
+
+    // Long polling configuration for fallback support
+    options.LongPolling.PollTimeout = TimeSpan.FromSeconds(90);
+}).RequireAuthorization("RequireValidPlayerId");
+
+app.MapGet("/js/signalr-transport-config.js", async context =>
+{
+    context.Response.ContentType = "application/javascript";
+    var filePath = Path.Combine(app.Environment.WebRootPath, "js", "signalr-transport-config.js");
+    await context.Response.SendFileAsync(filePath);
+});
 
 // Auto-migrate database in development
 if (app.Environment.IsDevelopment())
@@ -146,5 +289,5 @@ if (app.Environment.IsDevelopment())
     }
 }
 
-Log.Information("GameCore Service starting on port 5002");
+Log.Information("GameCore Service with Enhanced SignalR Transport Configuration starting on port 5002");
 app.Run();

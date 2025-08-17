@@ -10,6 +10,25 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <Compile Remove="Application\Commands\**" />
+	  <Compile Remove="Application\Queries\**" />
+	  <Compile Remove="Application\Validators\**" />
+	  <Compile Remove="Infrastructure\Repositories\**" />
+	  <Content Remove="Application\Commands\**" />
+	  <Content Remove="Application\Queries\**" />
+	  <Content Remove="Application\Validators\**" />
+	  <Content Remove="Infrastructure\Repositories\**" />
+	  <EmbeddedResource Remove="Application\Commands\**" />
+	  <EmbeddedResource Remove="Application\Queries\**" />
+	  <EmbeddedResource Remove="Application\Validators\**" />
+	  <EmbeddedResource Remove="Infrastructure\Repositories\**" />
+	  <None Remove="Application\Commands\**" />
+	  <None Remove="Application\Queries\**" />
+	  <None Remove="Application\Validators\**" />
+	  <None Remove="Infrastructure\Repositories\**" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="AspNetCore.HealthChecks.Redis" Version="8.0.1" />
 		<PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="8.0.2" />
 		<PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
@@ -45,10 +64,6 @@
 		<Folder Include="Domain\Entities\" />
 		<Folder Include="Domain\Events\" />
 		<Folder Include="Domain\Enums\" />
-		<Folder Include="Application\Commands\" />
-		<Folder Include="Application\Queries\" />
-		<Folder Include="Application\Validators\" />
-		<Folder Include="Infrastructure\Repositories\" />
 		<Folder Include="Middleware\" />
 	</ItemGroup>
 

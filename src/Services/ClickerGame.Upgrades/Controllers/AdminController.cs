@@ -9,7 +9,7 @@ namespace ClickerGame.Upgrades.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // TODO: Add admin role requirement
+    [Authorize]
     public class AdminController : ControllerBase
     {
         private readonly IUpgradeService _upgradeService;

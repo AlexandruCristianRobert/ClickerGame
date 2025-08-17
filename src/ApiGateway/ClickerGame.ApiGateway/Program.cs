@@ -23,7 +23,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "ClickerGame API Gateway",
         Version = "v1",
-        Description = "API Gateway for ClickerGame Microservices with Rate Limiting and Centralized Logging"
+        Description = "API Gateway for ClickerGame Microservices with WebSocket Support and Rate Limiting"
     });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -79,6 +79,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
+
+        // Enhanced JWT events for WebSocket/SignalR proxying
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                // Support JWT in query string for WebSocket connections
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/gameHub"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization(options =>
@@ -91,7 +109,10 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<IRateLimitService, RateLimitService>();
 builder.Services.AddScoped<IRateLimitMonitoringService, RateLimitMonitoringService>();
 
-// Add YARP
+// Add WebSocket-specific services
+builder.Services.AddSingleton<IWebSocketProxyService, WebSocketProxyService>();
+
+// Add YARP with WebSocket support
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
@@ -102,14 +123,16 @@ builder.Services.AddHealthChecks()
     .AddUrlGroup(new Uri("http://upgrades-service/health"), "upgrades-service")
     .AddRedis(builder.Configuration.GetConnectionString("Redis") ?? "redis:6379");
 
-// CORS
+// CORS with WebSocket support
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowWebSockets", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("http://localhost:4200", "https://localhost:4200", "http://localhost:3000")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials() // Required for SignalR/WebSockets
+              .WithExposedHeaders("X-Correlation-ID");
     });
 });
 
@@ -127,12 +150,22 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+app.UseCors("AllowWebSockets");
+
+// Enable WebSocket support
+app.UseWebSockets(new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromSeconds(30),
+    AllowedOrigins = { "http://localhost:4200", "https://localhost:4200", "http://localhost:3000" }
+});
 
 // Add correlation middleware FIRST (before rate limiting)
 app.UseMiddleware<CorrelationMiddleware>();
 
-// Add rate limiting middleware
+// Add WebSocket-aware rate limiting middleware
+app.UseMiddleware<WebSocketRateLimitingMiddleware>();
+
+// Add standard rate limiting middleware
 app.UseMiddleware<RateLimitingMiddleware>();
 
 app.UseAuthentication();
@@ -141,8 +174,8 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-// Map YARP routes
+// Map YARP routes with WebSocket support
 app.MapReverseProxy();
 
-Log.Information("API Gateway with Centralized Logging starting on port 5000");
+Log.Information("API Gateway with WebSocket Proxying starting on port 5000");
 app.Run();

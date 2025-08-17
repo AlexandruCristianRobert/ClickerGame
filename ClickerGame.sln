@@ -8,6 +8,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{C063E3BA-1B5A-4CBA-8192-F83EE7591DE5}"
 	ProjectSection(SolutionItems) = preProject
 		doc.txt = doc.txt
+		tasks.txt = tasks.txt
 		..\Documents\Updated Architecture Strategy.txt = ..\Documents\Updated Architecture Strategy.txt
 	EndProjectSection
 EndProject

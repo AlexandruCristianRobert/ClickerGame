@@ -1,3 +1,4 @@
+using ClickerGame.GameCore.Application.DTOs;
 using ClickerGame.GameCore.Application.Services;
 using ClickerGame.GameCore.Domain.ValueObjects;
 using ClickerGame.Shared.Logging;
@@ -15,15 +16,18 @@ namespace ClickerGame.GameCore.Controllers
         private readonly IGameEngineService _gameEngine;
         private readonly ILogger<GameController> _logger;
         private readonly ICorrelationService _correlationService;
+        private readonly IScoreUpdateThrottleService _scoreThrottleService;
 
         public GameController(
             IGameEngineService gameEngine,
             ILogger<GameController> logger,
-            ICorrelationService correlationService)
+            ICorrelationService correlationService,
+            IScoreUpdateThrottleService scoreThrottleService)
         {
             _gameEngine = gameEngine;
             _logger = logger;
             _correlationService = correlationService;
+            _scoreThrottleService = scoreThrottleService;
         }
 
         [HttpPost("click")]
@@ -34,12 +38,36 @@ namespace ClickerGame.GameCore.Controllers
             try
             {
                 var playerId = GetPlayerIdFromToken();
+
+                // Check for rate limiting at API level (different from real-time throttling)
+                var canProcess = await _scoreThrottleService.CanSendScoreUpdateAsync(playerId);
+                if (!canProcess)
+                {
+                    var throttleInfo = await _scoreThrottleService.GetThrottleInfoAsync(playerId);
+
+                    _logger.LogBusinessEvent(_correlationService, "ClickThrottled", new
+                    {
+                        PlayerId = playerId,
+                        RemainingTime = throttleInfo.RemainingThrottleTime.TotalMilliseconds
+                    });
+
+                    return StatusCode(429, new
+                    {
+                        error = "Rate limit exceeded",
+                        remainingTime = throttleInfo.RemainingThrottleTime.TotalMilliseconds,
+                        message = "Please slow down your clicking rate"
+                    });
+                }
+
                 var clickPower = new BigNumber(request.ClickPower);
 
                 _logger.LogBusinessEvent(_correlationService, "ClickProcessing", new { PlayerId = playerId, ClickPower = request.ClickPower });
 
                 var earnedValue = await _gameEngine.ProcessClickAsync(playerId, clickPower);
                 var session = await _gameEngine.GetGameSessionAsync(playerId);
+
+                // Record the score update for throttling
+                await _scoreThrottleService.RecordScoreUpdateAsync(playerId);
 
                 _logger.LogBusinessEvent(_correlationService, "ClickProcessed", new
                 {
@@ -53,7 +81,8 @@ namespace ClickerGame.GameCore.Controllers
                 {
                     EarnedValue = earnedValue.ToString(),
                     TotalScore = session.Score.ToString(),
-                    ClickCount = session.ClickCount
+                    ClickCount = session.ClickCount,
+                    ThrottleInfo = await _scoreThrottleService.GetThrottleInfoAsync(playerId)
                 });
             }
             catch (InvalidOperationException ex)
@@ -207,37 +236,34 @@ namespace ClickerGame.GameCore.Controllers
 
             try
             {
-                var session = await _gameEngine.GetGameSessionAsync(request.PlayerId);
-
-                // Apply click power bonuses
-                if (request.ClickPowerBonus > 0)
+                var upgradeEffects = new UpgradeEffectsDto
                 {
-                    session.ClickPower = session.ClickPower + new BigNumber(request.ClickPowerBonus);
-                }
-
-                // Apply passive income bonuses
-                if (request.PassiveIncomeBonus > 0)
-                {
-                    session.PassiveIncomePerSecond += request.PassiveIncomeBonus;
-                }
-
-                await _gameEngine.SaveGameSessionAsync(session);
-
-                _logger.LogBusinessEvent(_correlationService, "UpgradeEffectsApplied", new
-                {
-                    PlayerId = request.PlayerId,
                     ClickPowerBonus = request.ClickPowerBonus,
                     PassiveIncomeBonus = request.PassiveIncomeBonus,
-                    NewClickPower = session.ClickPower.ToString(),
-                    NewPassiveIncome = session.PassiveIncomePerSecond
-                });
+                    MultiplierBonus = request.MultiplierBonus,
+                    SourceUpgradeId = request.SourceUpgradeId,
+                    UpgradeName = request.UpgradeName ?? "Unknown Upgrade",
+                    UpgradeLevel = request.UpgradeLevel
+                };
 
-                return Ok(new
+                var success = await _gameEngine.ApplyUpgradeEffectsAsync(request.PlayerId, upgradeEffects);
+
+                if (success)
                 {
-                    success = true,
-                    newClickPower = session.ClickPower.ToString(),
-                    newPassiveIncome = session.PassiveIncomePerSecond
-                });
+                    var session = await _gameEngine.GetGameSessionAsync(request.PlayerId);
+
+                    return Ok(new
+                    {
+                        success = true,
+                        newClickPower = session.ClickPower.ToString(),
+                        newPassiveIncome = session.PassiveIncomePerSecond,
+                        message = "Upgrade effects applied successfully"
+                    });
+                }
+                else
+                {
+                    return BadRequest(new { error = "Failed to apply upgrade effects" });
+                }
             }
             catch (Exception ex)
             {
@@ -343,6 +369,35 @@ namespace ClickerGame.GameCore.Controllers
         {
             return User.FindFirst(ClaimTypes.Name)?.Value ?? "Unknown";
         }
+
+        /// <summary>
+        /// Process passive income for a player
+        /// </summary>
+        [HttpPost("process-passive-income")]
+        public async Task<ActionResult> ProcessPassiveIncome()
+        {
+            _logger.LogRequestStart(_correlationService, "ProcessPassiveIncome");
+
+            try
+            {
+                var playerId = GetPlayerIdFromToken();
+                var earnings = await _gameEngine.ProcessPassiveIncomeAsync(playerId);
+
+                return Ok(new
+                {
+                    passiveEarnings = earnings.ToString(),
+                    message = earnings > Domain.ValueObjects.BigNumber.Zero
+                        ? $"You earned {earnings} from passive income!"
+                        : "No passive income to collect"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(_correlationService, ex, "Error processing passive income");
+                return StatusCode(500, new { error = "Internal server error" });
+            }
+        }
+
     }
 
     // Request/Response DTOs for new endpoints
@@ -360,6 +415,8 @@ namespace ClickerGame.GameCore.Controllers
         public decimal PassiveIncomeBonus { get; set; }
         public decimal MultiplierBonus { get; set; } = 1.0m;
         public string SourceUpgradeId { get; set; } = string.Empty;
+        public string? UpgradeName { get; set; }
+        public int UpgradeLevel { get; set; }
     }
 
     public class ClickRequestDto
@@ -372,6 +429,7 @@ namespace ClickerGame.GameCore.Controllers
         public string EarnedValue { get; set; } = string.Empty;
         public string TotalScore { get; set; } = string.Empty;
         public long ClickCount { get; set; }
+        public ScoreUpdateThrottleInfo? ThrottleInfo { get; set; }
     }
 
     public class GameSessionDto

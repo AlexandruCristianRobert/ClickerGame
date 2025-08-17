@@ -32,6 +32,20 @@ services:
       - Jwt__Issuer=ClickerGame.Players
       - Jwt__Audience=ClickerGame
       - ConnectionStrings__Redis=redis:6379
+      # Rate Limiting Configuration
+      - IpRateLimiting__EnableEndpointRateLimiting=true
+      - IpRateLimiting__StackBlockedRequests=false
+      - IpRateLimiting__HttpStatusCode=429
+      - ClientRateLimiting__EnableEndpointRateLimiting=true
+      - ClientRateLimiting__StackBlockedRequests=false
+      - ClientRateLimiting__HttpStatusCode=429
+      # WebSocket Proxying Configuration
+      - WebSocketProxying__EnableWebSocketProxying=true
+      - WebSocketProxying__KeepAliveInterval=00:00:30
+      - WebSocketProxying__CloseTimeout=00:00:10
+      - WebSocketProxying__BufferSize=4096
+      - WebSocketProxying__MaxMessageSize=32768
+      - WebSocketProxying__LogLevel=Information
     ports:
       - "5000:80"
     depends_on:
@@ -57,12 +71,37 @@ services:
       - Jwt__Secret=74413016b8227efda87f73c6bf4217ce0c5ff5fd96d6b05e9ec36dc97cec3693ed8b41b4
       - Jwt__Issuer=ClickerGame.Players
       - Jwt__Audience=ClickerGame
+      - Jwt__ExpiryMinutes=60
+      # Service URLs for inter-service communication
+      - Services__GameCore__BaseUrl=http://gamecore-service:80
+      - Services__Players__BaseUrl=http://players-service:80
+      # Upgrade Settings Configuration
+      - UpgradeSettings__MaxUpgradeLevel=1000
+      - UpgradeSettings__CostScalingFactor=1.15
+      - UpgradeSettings__EffectScalingFactor=1.1
+      - UpgradeSettings__CacheExpirationMinutes=30
+      # Upgrade Validation Configuration
+      - UpgradeValidation__MaxLevelsPerPurchase=100
+      - UpgradeValidation__MaxBulkPurchaseCount=10
+      - UpgradeValidation__MaxPurchasesPerTimeWindow=10
+      - UpgradeValidation__MaxPurchasesPerMinute=5
+      - UpgradeValidation__MinLevelForHighValuePurchases=10
+      - UpgradeValidation__HighValuePurchaseThreshold=50
+      - UpgradeValidation__FraudSuspiciousThreshold=0.5
+      - UpgradeValidation__FraudBlockThreshold=0.8
+      # RabbitMQ Configuration
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=5672
+      - RabbitMQ__Username=admin
+      - RabbitMQ__Password=admin123
     ports:
       - "5003:80"
     depends_on:
       sqlserver:
         condition: service_healthy
       redis:
+        condition: service_started
+      rabbitmq:
         condition: service_started
       players-service:
         condition: service_started
@@ -72,12 +111,19 @@ services:
   players-service:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: src/Services/ClickerGame.Players/Dockerfile
     container_name: clickergame-players
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=ClickerGame_Players;User Id=sa;Password=Filelist2015!;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True
+      - Jwt__Secret=74413016b8227efda87f73c6bf4217ce0c5ff5fd96d6b05e9ec36dc97cec3693ed8b41b4
+      - Jwt__Issuer=ClickerGame.Players
+      - Jwt__Audience=ClickerGame
+      - Jwt__ExpirationHours=1
+      # Service Settings
+      - ServiceSettings__ServiceName=Players
+      - ServiceSettings__Version=1.0.0
     ports:
       - "5001:80"
     depends_on:
@@ -99,6 +145,38 @@ services:
       - Jwt__Secret=74413016b8227efda87f73c6bf4217ce0c5ff5fd96d6b05e9ec36dc97cec3693ed8b41b4
       - Jwt__Issuer=ClickerGame.Players
       - Jwt__Audience=ClickerGame
+      - Jwt__ExpiryMinutes=60
+      # SignalR Configuration
+      - SignalR__KeepAliveInterval=00:00:15
+      - SignalR__ClientTimeoutInterval=00:00:30
+      - SignalR__HandshakeTimeout=00:00:15
+      - SignalR__EnableDetailedErrors=true
+      - SignalR__MaximumReceiveMessageSize=32768
+      - SignalR__StreamBufferCapacity=10
+      - SignalR__MaximumParallelInvocationsPerClient=1
+      # SignalR Transport Configuration
+      - SignalR__TransportConfiguration__EnableWebSockets=true
+      - SignalR__TransportConfiguration__EnableServerSentEvents=true
+      - SignalR__TransportConfiguration__EnableLongPolling=true
+      - SignalR__TransportConfiguration__WebSocketCloseTimeout=00:00:10
+      - SignalR__TransportConfiguration__WebSocketKeepAliveInterval=00:00:30
+      - SignalR__TransportConfiguration__LongPollingTimeout=00:01:30
+      - SignalR__TransportConfiguration__ServerSentEventsTimeout=00:02:00
+      # SignalR Connection Retry Policy
+      - SignalR__TransportConfiguration__ConnectionRetryPolicy__EnableAutoReconnect=true
+      - SignalR__TransportConfiguration__ConnectionRetryPolicy__MaxRetryAttempts=5
+      - SignalR__TransportConfiguration__ConnectionRetryPolicy__MaxRetryDelayInSeconds=30
+      - SignalR__TransportConfiguration__ConnectionRetryPolicy__ReconnectTimeoutInSeconds=120
+      # SignalR Browser Compatibility
+      - SignalR__BrowserCompatibility__DisableWebSocketsForOlderBrowsers=true
+      - SignalR__BrowserCompatibility__FallbackTransportLogging=true
+      # Allowed Origins for CORS
+      - AllowedOrigins__0=http://localhost:4200
+      - AllowedOrigins__1=https://localhost:4200
+      - AllowedOrigins__2=http://localhost:3000
+      - AllowedOrigins__3=https://localhost:3000
+      - AllowedOrigins__4=http://api-gateway
+      - AllowedOrigins__5=http://clickergame-gateway
     ports:
       - "5002:80"
     depends_on:
@@ -110,7 +188,6 @@ services:
         condition: service_started
     networks:
       - clickergame-network
-
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -125,6 +202,11 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - clickergame-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   redis:
     image: redis:7-alpine
@@ -135,6 +217,11 @@ services:
       - redis_data:/data
     networks:
       - clickergame-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
 volumes:
   sqlserver_data:
